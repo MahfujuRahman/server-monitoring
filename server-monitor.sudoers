@@ -1,0 +1,41 @@
+# /etc/sudoers.d/server-monitor
+# Lets the dashboard (running as www-data) run ONLY these exact commands as root.
+#
+# Install:
+#   sudo visudo -cf server-monitor.sudoers            # syntax check first!
+#   sudo install -m 0440 -o root -g root server-monitor.sudoers /etc/sudoers.d/server-monitor
+#
+# If you add a service to SERVICES or a path to DU_PATHS in status.php, add matching lines here.
+
+Cmnd_Alias SRVMON_SVC = \
+    /usr/bin/systemctl --no-block restart nginx, \
+    /usr/bin/systemctl --no-block start nginx, \
+    /usr/bin/systemctl --no-block reload nginx, \
+    /usr/bin/systemctl --no-block restart php8.4-fpm, \
+    /usr/bin/systemctl --no-block start php8.4-fpm, \
+    /usr/bin/systemctl --no-block reload php8.4-fpm, \
+    /usr/bin/systemctl --no-block restart mysql, \
+    /usr/bin/systemctl --no-block start mysql, \
+    /usr/bin/systemctl --no-block restart redis-server, \
+    /usr/bin/systemctl --no-block start redis-server, \
+    /usr/bin/systemctl --no-block restart supervisor, \
+    /usr/bin/systemctl --no-block start supervisor, \
+    /usr/bin/systemctl --no-block restart cron, \
+    /usr/bin/systemctl --no-block start cron, \
+    /usr/bin/systemctl --no-block restart netdata, \
+    /usr/bin/systemctl --no-block start netdata, \
+    /usr/bin/systemctl reset-failed
+
+Cmnd_Alias SRVMON_TOOLS = \
+    /usr/bin/supervisorctl, \
+    /usr/sbin/nginx -t, \
+    /usr/sbin/php-fpm8.4 -t, \
+    /usr/bin/journalctl --vacuum-size=200M, \
+    /usr/bin/ss -tulpnH, \
+    /usr/sbin/ufw status, \
+    /usr/bin/du -xh --max-depth=1 /, \
+    /usr/bin/du -xh --max-depth=1 /var, \
+    /usr/bin/du -xh --max-depth=1 /var/log, \
+    /usr/bin/du -xh --max-depth=1 /var/www/influencerpro
+
+www-data ALL=(root) NOPASSWD: SRVMON_SVC, SRVMON_TOOLS
