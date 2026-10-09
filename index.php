@@ -10,11 +10,11 @@ declare(strict_types=1);
 const APP_TITLE = 'InfluencerPro Server';
 
 // Generate with:  php -r "echo password_hash('your-strong-password', PASSWORD_DEFAULT), PHP_EOL;"
-const ADMIN_PASSWORD_HASH = '$2y$12$Vr/i50rApA6TDXn49KE85upUWjIuYynlYXsTiBlCMoya3WySuO58S';  // change this to your own hash
+const ADMIN_PASSWORD_HASH = 'teste';  // change this to your own hash
 const ALLOWED_IPS         = [];      // e.g. ['203.0.113.10'] — empty = any IP (password still required)
 const SESSION_IDLE_MIN    = 120;
 
-const LARAVEL_PATH = '/var/www/influencerpro';   // folder that contains artisan + .env
+const LARAVEL_PATH = '/var/www/influencer';   // folder that contains artisan + .env
 const PHP_BIN      = '/usr/bin/php8.4';
 const PHP_FPM_BIN  = '/usr/sbin/php-fpm8.4';
 const PHP_FPM_LOG  = '/var/log/php8.4-fpm.log';
@@ -810,7 +810,7 @@ foreach ($ssl as $d => $c) {
     if ($days < 7) $issue('crit', "SSL for {$d} expires in {$days} days — run: sudo certbot renew");
     elseif ($days < 21) $issue('warn', "SSL for {$d} expires in {$days} days");
 }
-foreach ($nd['alarms'] as $a) if (in_array($a['status'], ['CRITICAL', 'WARNING'], true)) $issue($a['status'] === 'CRITICAL' ? 'crit' : 'warn', "Netdata: {$a['name']} = {$a['value']} ({$a['chart']})");
+foreach ($nd['alarms'] as $a) if (in_array($a['status'], ['CRITICAL', 'WARNING'], true) && !in_array($a['name'], ['system_reboot_detection'], true)) $issue($a['status'] === 'CRITICAL' ? 'crit' : 'warn', "Netdata: {$a['name']} = {$a['value']} ({$a['chart']})");
 if (!$jAccess) $issue('warn', 'Web user cannot read the journal — logs/security checks limited. Add www-data to systemd-journal group.');
 
 usort($issues, fn($a, $b) => ($a['lvl'] === 'crit' ? 0 : 1) <=> ($b['lvl'] === 'crit' ? 0 : 1));
