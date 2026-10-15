@@ -6,6 +6,7 @@
 #   sudo install -m 0440 -o root -g root server-monitor.sudoers /etc/sudoers.d/server-monitor
 #
 # If you add a service to SERVICES or a path to DU_PATHS in status.php, add matching lines here.
+# Services in OPTIONAL_SERVICES (Turn on / Turn off buttons) also need the two "env SYSTEMCTL_SKIP_SYSV\=1 ... --now" lines.
 
 Cmnd_Alias SRVMON_SVC = \
     /usr/bin/systemctl --no-block restart nginx, \
@@ -24,6 +25,8 @@ Cmnd_Alias SRVMON_SVC = \
     /usr/bin/systemctl --no-block start cron, \
     /usr/bin/systemctl --no-block restart netdata, \
     /usr/bin/systemctl --no-block start netdata, \
+    /usr/bin/env SYSTEMCTL_SKIP_SYSV\=1 /usr/bin/systemctl enable --now netdata, \
+    /usr/bin/env SYSTEMCTL_SKIP_SYSV\=1 /usr/bin/systemctl disable --now netdata, \
     /usr/bin/systemctl reset-failed
 
 Cmnd_Alias SRVMON_TOOLS = \

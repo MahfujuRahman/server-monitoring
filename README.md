@@ -110,6 +110,86 @@ Use HTTPS (`sudo certbot --nginx -d monitor.yourdomain.com`) so the password isn
 
 ---
 
+## Netdata on/off
+
+Netdata is optional. Only the **Netdata alarms** panel uses it, and every other check on the dashboard collects its own data.
+
+To switch it off, click **Turn off** in the Netdata panel or the Services table. This stops Netdata and keeps it off after reboots (`systemctl disable --now netdata`), so it stops using RAM and CPU. While it's off, the dashboard shows it as **OFF** instead of DOWN and doesn't raise any warnings about it. Click **Turn on** to bring it back.
+
+The buttons need the two `env SYSTEMCTL_SKIP_SYSV\=1 … --now netdata` lines in `server-monitor.sudoers`. If you installed the sudoers file before these lines were added, repeat setup step 2.
+
+`SYSTEMCTL_SKIP_SYSV=1` is there because Netdata's installer also leaves an old-style `/etc/init.d/netdata` script. Without it, `systemctl` tries to sync that script, fails with `update-rc.d: error: no runlevel symlinks to modify`, and aborts without stopping Netdata. systemd ignores the script anyway, because Netdata has a native systemd unit.
+
+To get the same buttons for another service you only need sometimes, add it to `OPTIONAL_SERVICES` and copy those two sudoers lines with the new service name.
+
+---
+
+## Alerts (Telegram and email)
+
+A cron job runs the same health checks as the dashboard every minute and messages you when:
+
+- a problem starts. It has to show up in 2 checks in a row, so a short spike won't alert you.
+- a critical problem is still open after 6 hours.
+- a problem is resolved.
+
+Each run sends at most one message per channel, listing everything that changed.
+
+### 1. Telegram
+
+1. In Telegram, open **@BotFather**, send `/newbot` and follow the prompts. Copy the token it gives you.
+2. Open your new bot and send it any message. A bot can't message you until you've messaged it first.
+3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and find `"chat":{"id":123456789`. That number is your chat id.
+   To alert a group instead, add the bot to the group, send a message in the group, and use the group's id (it starts with `-100`).
+4. Put both values in the config block of `index.php`:
+
+```php
+const ALERT_TELEGRAM_TOKEN = '123456789:AAF...';
+const ALERT_TELEGRAM_CHAT  = '123456789';
+```
+
+### 2. Email
+
+Set `ALERT_EMAIL_TO = 'you@example.com'` (separate several addresses with commas). By default, alerts go out through the SMTP server in the Laravel `.env` (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`). If the app already sends email over SMTP, there's nothing else to set.
+
+If the app sends mail some other way (`MAIL_MAILER=ses`, `mailgun`, `log`…), or you want to use a separate account, set `ALERT_SMTP`:
+
+```php
+const ALERT_SMTP = ['host' => 'smtp.gmail.com', 'port' => 587, 'user' => 'you@gmail.com', 'pass' => 'your-app-password', 'from' => 'you@gmail.com'];
+```
+
+Port 587 uses STARTTLS and port 465 uses SSL. Gmail needs an app password (Google Account → Security → App passwords), because your normal password won't work. Many VPS providers block outbound port 25, so use 587 or 465.
+
+### 3. Send a test
+
+```bash
+sudo -u www-data php8.4 /var/www/monitor/index.php alert-test
+```
+
+You can also click **Tools → Send test alert** on the dashboard. Each channel reports `sent ✓` or the error.
+
+Always run commands as `www-data`. If you run them as root, they create files that the web user can't write to later.
+
+### 4. Install the cron job
+
+```bash
+echo '* * * * * www-data /usr/bin/php8.4 /var/www/monitor/index.php alerts >/dev/null 2>&1' | sudo tee /etc/cron.d/server-monitor
+```
+
+Within two minutes, **Tools → Alerts** shows "Last cron check: … ago". If alerts are configured but the cron stops running, the dashboard shows a warning in Health.
+
+### Tuning
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ALERT_MIN_LEVEL` | `'warn'` | Set to `'crit'` to hear only about critical problems |
+| `ALERT_CONFIRM_RUNS` | `2` | How many checks in a row a problem must appear in before you're told, and must be gone for before "resolved" is sent |
+| `ALERT_REMIND_HOURS` | `6` | Re-sends still-open critical problems every N hours. `0` turns reminders off |
+| `ALERT_IGNORE` | `[]` | Text of issues you never want messages about, e.g. `['No swap configured', 'Netdata:']` |
+
+Sent alerts and send failures are written to the audit log (**Tools → Action audit log**). The alert state is kept in `server-monitor-alerts.json` next to the audit log.
+
+---
+
 ## Local testing
 
 The dashboard reads Linux internals (`/proc`, `systemctl`, `journalctl`), so it has to run on Linux. On Windows use **WSL (Ubuntu)**, and on macOS use **Docker**. Running it straight on macOS or Windows PHP won't work.
@@ -214,6 +294,13 @@ Open <http://127.0.0.1:8099> on your laptop. Everything should now be green or s
 | Netdata "API not reachable" | Netdata must listen on `127.0.0.1:19999` (or change `NETDATA_API`) |
 | Restarting PHP-FPM shows "Request failed" | Expected, because the page itself runs on PHP-FPM. Refresh after a few seconds |
 | Action buttons time out | Raise `fastcgi_read_timeout` in Nginx (see step 4) |
+| "Turn off" Netdata says "sudo rule missing" | Reinstall the sudoers file (step 2). It needs the two `env SYSTEMCTL_SKIP_SYSV\=1 …` lines |
+| "Turn off" shows `update-rc.d: error: no runlevel symlinks to modify` | You have an older `index.php`. Update it and the sudoers file, because the current version skips that SysV step. Netdata is still running until then |
+| Telegram: "chat not found" | Send your bot a message first, then re-check the chat id from `getUpdates` |
+| Telegram: "cannot reach api.telegram.org" | Outbound HTTPS is blocked, or `allow_url_fopen` is off in the CLI `php.ini` |
+| Email: "cannot connect to …" | The VPS provider blocks that port. Use 587 or 465 |
+| Email: "535 …" / authentication failed | Wrong SMTP user/password. Gmail needs an app password |
+| Health says "alert cron has never run" | The cron line is missing (Alerts step 4), or `www-data` can't write to `storage/logs` |
 
 Every action is recorded in `storage/logs/server-monitor-audit.log`, and you can also see it under **Tools → Action audit log** on the dashboard.
 
