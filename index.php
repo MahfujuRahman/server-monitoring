@@ -64,8 +64,8 @@ const ARTISAN = [   // key => [artisan args, confirm text|null]
 ];
 
 // Alerts: a cron job runs the health checks every minute and messages you when something breaks or recovers (README → Alerts)
-const ALERT_TELEGRAM_TOKEN = '8578794424:AAF04w2FZSVecLWnQzXj0J0l7VW1bWUZOhw';       // from @BotFather, e.g. '123456789:AAF…'
-const ALERT_TELEGRAM_CHAT = '8354887778';       // your chat id, e.g. '123456789' (group ids start with -100)
+const ALERT_TELEGRAM_TOKEN = '';       // from @BotFather, e.g. '123456789:AAF…'
+const ALERT_TELEGRAM_CHAT = '';       // your chat id, e.g. '123456789' (group ids start with -100)
 const ALERT_EMAIL_TO = '';       // e.g. 'you@example.com' (comma-separate several). Empty = no email
 const ALERT_SMTP = [];       // empty = use MAIL_* from the Laravel .env, or e.g. ['host' => 'smtp.gmail.com', 'port' => 587, 'user' => 'you@gmail.com', 'pass' => 'app-password', 'from' => 'you@gmail.com']
 const ALERT_MIN_LEVEL = 'warn';   // 'warn' = warnings + critical, 'crit' = critical only
